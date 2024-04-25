@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: concept-sidecar-pattern
+spec:
+  template:
+    spec:
+      containers:
+        - name: concept-sidecar-pattern
+          image: busybox:latest
+          args: [ "ls", "data/" ]
+          imagePullPolicy: Always
+      restartPolicy: Never
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
