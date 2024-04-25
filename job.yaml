@@ -32,11 +32,14 @@ spec:
 
         - name: upload-target-to-s3
           image: minio/mc:latest
+
           command: ["/bin/sh", "-c"]
+
           args:
             - |
               mc alias set minio http://minio:9000 minio minio123
               mc mirror /target minio/concept-car-bucket/target
+
           imagePullPolicy: Always
           volumeMounts:
             - name: target-dir
