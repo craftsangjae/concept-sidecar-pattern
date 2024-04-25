@@ -7,8 +7,12 @@ spec:
     spec:
       initContainers:
         - name: download-source-from-s3
-          image: busybox:latest
-          args: [ "touch", "/source/data1", "/source/data2", "/source/data3" ]
+          image: minio/mc:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              mc alias set minio http://minio:9000 minio minio123
+              mc mirror minio/concept-car-bucket/source /source
           imagePullPolicy: Always
           volumeMounts:
             - name: source-dir
@@ -25,8 +29,12 @@ spec:
               mountPath: "/target"
 
         - name: upload-target-to-s3
-          image: busybox:latest
-          args: [ "ls", "/target" ]
+          image: minio/mc:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              mc alias set minio http://minio:9000 minio minio123
+              mc mirror /target minio/concept-car-bucket/target
           imagePullPolicy: Always
           volumeMounts:
             - name: target-dir

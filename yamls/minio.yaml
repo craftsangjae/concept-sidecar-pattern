@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+spec:
+  serviceName: "minio"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      volumes:
+        - name: storage
+          hostPath:
+            path: /mnt/minio/data
+            type: DirectoryOrCreate
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2024-04-06T05-26-02Z-cpuv1
+          args:
+            - server
+            - /storage
+            - --console-address
+            - :9001
+          envFrom:
+            - configMapRef:
+                name: minio-config
+          volumeMounts:
+            - mountPath: /storage
+              name: storage
+          ports:
+            - containerPort: 9000
+              hostPort: 9000
+              name: main-port
+            - containerPort: 9001
+              hostPort: 9001
+              name: console-port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+spec:
+  ports:
+    - port: 9000
+      targetPort: 9000
+      protocol: TCP
+      name: main-port
+    - port: 9001
+      targetPort: 9001
+      protocol: TCP
+      name: console-port
+  selector:
+    app: minio

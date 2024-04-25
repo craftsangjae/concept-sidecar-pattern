@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-config
+data:
+  MINIO_ROOT_USER: "minio"
+  MINIO_ROOT_PASSWORD: "minio123"
