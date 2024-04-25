@@ -5,6 +5,7 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: k8s-watcher-sa
       initContainers:
         - name: download-source-from-s3
           image: minio/mc:latest
@@ -20,10 +21,18 @@ spec:
             - name: source-dir
               mountPath: "/source"
 
-        - name: core-container
+      containers:
+        - name: main-container
           image: busybox:latest
-          args: [ "cp", "-a", "source/.", "target/" ]
-          imagePullPolicy: Always
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+                touch /target/1.txt;
+                sleep 3;
+                touch /target/2.txt;
+                sleep 60;
+                touch /target/3.txt /target/4.txt /target/5.txt /target/6.txt;
+
           volumeMounts:
             - name: source-dir
               mountPath: "/source"
@@ -31,29 +40,27 @@ spec:
               mountPath: "/target"
 
         - name: upload-target-to-s3
-          image: minio/mc:latest
+          image: k8s-watcher
+          args: [ "/target", "target" ]
 
-          command: ["/bin/sh", "-c"]
+          envFrom:
+            - configMapRef:
+                name: minio-watcher-config
+          env:
+          - name: JOB_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.labels['job-name']
+          - name: NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
 
-          args:
-            - |
-              mc alias set minio http://minio:9000 minio minio123
-              mc mirror /target minio/concept-car-bucket/target
-
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: target-dir
               mountPath: "/target"
 
-      containers:
-         - name: empty
-           image: busybox:latest
-           command: ["sleep", "3600"]
-           volumeMounts:
-            - name: source-dir
-              mountPath: "/source"
-            - name: target-dir
-              mountPath: "/target"
 
       volumes:
       - name: source-dir
@@ -66,3 +73,49 @@ spec:
 
   backoffLimit: 0
   ttlSecondsAfterFinished: 3600
+
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-watcher-config
+data:
+  ENDPOINT_URL: "http://minio:9000"
+  BUCKET_NAME: "concept-car-bucket"
+  ACCESS_KEY: "minio"
+  SECRET_KEY: "minio123"
+
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-watcher-sa
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-watcher-role
+rules:
+  - apiGroups: [ "batch" ]
+    resources: [ "jobs" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "get", "list", "watch" ]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-watcher-role
+subjects:
+  - kind: ServiceAccount
+    name: k8s-watcher-sa
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: k8s-watcher-role
+  apiGroup: rbac.authorization.k8s.io
