@@ -8,6 +8,8 @@ packages = []
 
 [tool.poetry.dependencies]
 python = "^3.11"
+kubernetes = "^29.0.0"
+click = "^8.1.7"
 
 
 [build-system]
