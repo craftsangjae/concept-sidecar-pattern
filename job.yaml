@@ -5,11 +5,51 @@ metadata:
 spec:
   template:
     spec:
-      containers:
-        - name: concept-sidecar-pattern
+      initContainers:
+        - name: download-source-from-s3
           image: busybox:latest
-          args: [ "ls", "data/" ]
+          args: [ "touch", "/source/data1", "/source/data2", "/source/data3" ]
           imagePullPolicy: Always
+          volumeMounts:
+            - name: source-dir
+              mountPath: "/source"
+
+        - name: core-container
+          image: busybox:latest
+          args: [ "cp", "-a", "source/.", "target/" ]
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: source-dir
+              mountPath: "/source"
+            - name: target-dir
+              mountPath: "/target"
+
+        - name: upload-target-to-s3
+          image: busybox:latest
+          args: [ "ls", "/target" ]
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: target-dir
+              mountPath: "/target"
+
+      containers:
+         - name: empty
+           image: busybox:latest
+           command: ["sleep", "3600"]
+           volumeMounts:
+            - name: source-dir
+              mountPath: "/source"
+            - name: target-dir
+              mountPath: "/target"
+
+      volumes:
+      - name: source-dir
+        emptyDir: {}
+      - name: target-dir
+        emptyDir: {}
+
       restartPolicy: Never
+
+
   backoffLimit: 0
   ttlSecondsAfterFinished: 3600
